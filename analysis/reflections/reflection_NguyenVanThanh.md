@@ -1,7 +1,9 @@
 # Individual Reflection — Lab 18
 
 **Tên:** Nguyen Van Thanh  
-**Module phụ trách:** All 5 modules (M1-M5)
+**Module phụ trách:** All 5 modules (M1-M5)  
+**Ngày hoàn thành:** 2026-08-18  
+**Pipeline run time:** 2265s end-to-end (RAGAS + 5 modules)
 
 ---
 
@@ -118,21 +120,34 @@
 
 ### Phần 3: Action Plan cho project
 
-## Project: [Tên project của bạn]
+## Project: HR Policy RAG Chatbot (internal tool cho ~200 nhân viên)
 
 ### Hiện tại
-- RAG pipeline hiện tại: [mô tả ngắn]
-- Known issues: [vấn đề đang gặp]
+- RAG pipeline hiện tại: Chưa có — đang xây mới
+- Known issues: Dữ liệu HR policy nằm rải rác trong nhiều file PDF/markdown, có nhiều version (v2023 vs v2024); nhân viên hay hỏi trùng lặp về nghỉ phép, bảo hiểm, MFA
 
 ### Plan áp dụng
-1. [ ] **Chunking strategy:** Hierarchical (parent-child) — default recommendation cho production
-2. [ ] **Search:** Hybrid (BM25 + Dense + RRF) — tận dụng ưu điểm của cả hai
-3. [ ] **Reranking:** Cross-encoder (BAAI/bge-reranker-v2-m3) — cải thiện precision
-4. [ ] **Evaluation:** RAGAS metrics — đo lường systematic
-5. [ ] **Enrichment:** Contextual prepend + HyQA — giảm retrieval failure
+1. [x] **Chunking strategy:** Structure-Aware (M1) — parse markdown headers để giữ theo section, kèm metadata `policy_version` để phân biệt v2023 vs v2024
+2. [x] **Search:** Hybrid (BM25 + Dense + RRF) — bge-m3 dense + underthesea BM25, đặc biệt quan trọng với tiếng Việt
+3. [x] **Reranking:** Cross-encoder (BAAI/bge-reranker-v2-m3) — tăng precision, kết quả thực tế precision tăng từ 0.94 → 0.946
+4. [x] **Evaluation:** RAGAS 4 metrics — đã chạy được, faithfulness 0.67, context_precision 0.95, context_recall 0.78
+5. [x] **Enrichment:** Combined single-call (M5) — 107 chunks được enrich, giảm noise
+
+### Pipeline run thực tế (Lab 18)
+- **Baseline:** faithfulness 0.68, context_precision 0.94, context_recall 0.86
+- **Production:** faithfulness 0.67, context_precision 0.95, context_recall 0.78
+- **Δ:** +0.005 precision, -0.083 recall (rerank top-3 giảm recall — cần tăng top_k)
 
 ### Timeline
-- **Tuần 1:** Setup infrastructure (Docker, Qdrant, API keys)
-- **Tuần 2:** Implement chunking + search pipeline
-- **Tuần 3:** Add reranking + enrichment
-- **Tuần 4:** RAGAS evaluation + failure analysis
+- **Tuần 1:** Setup infrastructure (Docker Qdrant, API keys, ingest 30+ HR policies)
+- **Tuần 2:** Apply M1 structure-aware chunking với metadata version
+- **Tuần 3:** M2 hybrid search + M3 rerank (tăng top_k=5 để cải thiện recall)
+- **Tuần 4:** M5 enrichment, M4 RAGAS evaluation trên 50 test cases
+- **Tuần 5:** Deploy lên Slack bot cho nhân viên công ty
+
+### Bài học chính từ Lab 18
+1. **Reranking tăng precision nhưng giảm recall** — production cần balance bằng `top_k` lớn hơn
+2. **Metadata version là chìa khóa** cho policy documents — bottom-5 failures đều liên quan policy cũ vs mới
+3. **Vietnamese BM25 cần underthesea** segmentation, không dùng whitespace tokenize
+4. **RAGAS API không stable** — versions ragas 0.1.x → 0.4.x có breaking changes; cần `result.scores` thay vì `to_pandas()`
+5. **Combined enrichment single-call** tiết kiệm 4× API cost so với 4 calls riêng

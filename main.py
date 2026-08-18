@@ -9,7 +9,12 @@ Usage:
 
 import json
 import os
+import sys
 import time
+
+# Fix encoding for Windows console
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 
 def main():
@@ -35,8 +40,11 @@ def main():
 
     # Move reports to reports/
     for f in ["ragas_report.json", "naive_baseline_report.json"]:
+        dst = f"reports/{f}"
         if os.path.exists(f):
-            os.rename(f, f"reports/{f}")
+            if os.path.exists(dst):
+                os.remove(dst)
+            os.rename(f, dst)
 
     # Step 3: Comparison
     print("\n📌 STEP 3: Comparison")

@@ -88,7 +88,7 @@ class DenseSearch:
         from qdrant_client.models import Distance, VectorParams, PointStruct
 
         self.client.recreate_collection(
-            collection,
+            collection_name=collection,
             vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE)
         )
 
@@ -104,13 +104,13 @@ class DenseSearch:
             for i, (c, v) in enumerate(zip(chunks, vectors))
         ]
 
-        self.client.upsert(collection, points)
+        self.client.upsert(collection_name=collection, points=points)
 
     def search(self, query: str, top_k: int = DENSE_TOP_K, collection: str = COLLECTION_NAME) -> list[SearchResult]:
         """Search using dense vectors."""
         query_vector = self._get_encoder().encode(query).tolist()
         response = self.client.query_points(
-            collection=collection,
+            collection_name=collection,
             query=query_vector,
             limit=top_k
         )

@@ -47,29 +47,39 @@ def evaluate_ragas(questions: list[str], answers: list[str],
             metrics=[faithfulness, answer_relevancy, context_precision, context_recall]
         )
 
-        df = result.to_pandas()
+        # ragas 0.4.x returns EvaluationResult with .scores (list of dicts)
+        try:
+            scores_list = result.scores
+        except Exception:
+            scores_list = [{} for _ in questions]
 
-        # Calculate aggregate scores
+        # Build per-question EvalResult from scores
+        per_question = []
+        for i, q in enumerate(questions):
+            s = scores_list[i] if i < len(scores_list) else {}
+            per_question.append(EvalResult(
+                question=q,
+                answer=answers[i],
+                contexts=contexts[i],
+                ground_truth=ground_truths[i],
+                faithfulness=float(s.get("faithfulness", 0.0) or 0.0),
+                answer_relevancy=float(s.get("answer_relevancy", 0.0) or 0.0),
+                context_precision=float(s.get("context_precision", 0.0) or 0.0),
+                context_recall=float(s.get("context_recall", 0.0) or 0.0),
+            ))
+
+        # Aggregate (mean across valid scores, NaN-safe)
+        def safe_mean(key):
+            vals = [float(s.get(key, 0) or 0) for s in scores_list]
+            vals = [v for v in vals if v == v]  # drop NaN
+            return sum(vals) / len(vals) if vals else 0.0
+
         aggregate = {
-            "faithfulness": float(df["faithfulness"].mean()) if "faithfulness" in df else 0.0,
-            "answer_relevancy": float(df["answer_relevancy"].mean()) if "answer_relevancy" in df else 0.0,
-            "context_precision": float(df["context_precision"].mean()) if "context_precision" in df else 0.0,
-            "context_recall": float(df["context_recall"].mean()) if "context_recall" in df else 0.0,
+            "faithfulness": safe_mean("faithfulness"),
+            "answer_relevancy": safe_mean("answer_relevancy"),
+            "context_precision": safe_mean("context_precision"),
+            "context_recall": safe_mean("context_recall"),
         }
-
-        per_question = [
-            EvalResult(
-                question=row["question"],
-                answer=row["answer"],
-                contexts=row["contexts"] if isinstance(row["contexts"], list) else [row["contexts"]],
-                ground_truth=row["ground_truth"],
-                faithfulness=float(row.get("faithfulness", 0.0)),
-                answer_relevancy=float(row.get("answer_relevancy", 0.0)),
-                context_precision=float(row.get("context_precision", 0.0)),
-                context_recall=float(row.get("context_recall", 0.0))
-            )
-            for _, row in df.iterrows()
-        ]
 
         return {**aggregate, "per_question": per_question}
 
