@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import sentence_transformers; print\\('OK'\\)\")",
+      "Bash(pip3.14 install *)",
+      "Bash(python3.10 --version)",
+      "Bash(python3.10 -c \"import sentence_transformers; print\\('OK'\\)\")"
+    ]
+  }
+}
